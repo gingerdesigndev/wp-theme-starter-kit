@@ -52,17 +52,43 @@
 
 ## 完成後怎麼用
 
+### 這包是設計成「跟 AI 一起用」的
+
+**光把這個 GitHub 連結貼給 AI 沒有用**——repo 是 private，對方的 AI 讀不到；
+就算讀得到，純聊天介面也沒有檔案系統可以跑腳本、沒有 Local 站可以驗證。
+
+正確的用法是 **clone 到本機，然後用 AI 編輯器打開這個資料夾**：
+
 ```bash
 git clone git@github.com:gingerdesigndev/wp-theme-starter-kit.git
-# 把整包複製到目標 Local 站的 wp-content/themes/
-# 在那份複本上跑：
+cd wp-theme-starter-kit
+claude          # 或用 Cursor / VS Code 開這個資料夾
+```
+
+然後直接跟它說「**我要開新站**」。
+
+進到這個資料夾的 AI 會自動讀到 `AGENTS.md`（Claude Code 讀 `CLAUDE.md`，它指向同一份），
+知道這是什麼專案、該讀哪份文件、有哪些硬規則、以及哪些事它做不到。
+`.claude/skills/` 裡的 skill 在 Claude Code 底下會依你說的話自動觸發，
+你不需要記任何指令，也不必先讀完所有文件。
+
+### 起案
+
+```bash
+# 把整包複製到目標 Local 站的 wp-content/themes/，在那份複本上跑：
 ./起案.sh <主題slug> <CSS前綴> "<主題顯示名>"
 ```
 
 `起案.sh` 會把出廠的 `starter-theme` / `st-` 換成新站的名字、產生站台專屬檔，
-並印出**只有人能做、AI 做不到**的三件事（裝 SSH 公鑰、產 Application Password、後台啟用主題）。
+並印出**只有人能做、AI 做不到**的三件事（裝 SSH 公鑰、產應用程式密碼、後台啟用主題）。
 
 然後從 `docs/00-開站六步.md` 開始。
+
+### AI 幫不到你的地方
+
+先講清楚免得期待落差。AI 能做的是它碰得到的部分：寫碼、切版、部署、驗證、
+上傳素材、建頁面。碰不到的是上面那三件，加上客戶的 Figma、主機面板與 DNS
+——這些需要你主動提供或親自操作。
 
 ---
 
