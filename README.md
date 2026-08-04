@@ -6,7 +6,8 @@
 目的是讓下一個客戶站**不必從零開始**——clone 下來、跑一支腳本改名，
 就有一個能跑、能部署、有後台設定頁的素站，並且知道每一步該怎麼做、哪些坑不用再踩一次。
 
-> ⚠️ **這是野薑設計的內部資產，不要外流。**
+由[野薑設計](https://www.gingerdesign.com.tw/)維護。歡迎自用與修改；
+它反映的是我們自己接案的工作方式，不保證適合你的流程。
 
 ---
 
@@ -19,12 +20,10 @@
 | 主題骨架程式碼 | 🚧 尚未開始 |
 | 八份規範文件 | 🚧 尚未開始 |
 
-**現在 clone 下來還不能用。** 這個 repo 目前只有 `docs/superpowers/` 底下的
-設計文件與實作計畫；主題檔案（`style.css`、`functions.php`、`template-parts/` 等）
-要等實作跑完才會出現。
+**現在 clone 下來還不能用。** 主題檔案（`style.css`、`functions.php`、
+`template-parts/` 等）與 `docs/` 底下的規範文件都還在實作中。
 
-想了解這包會長什麼樣、為什麼這樣設計，讀
-[設計文件](docs/superpowers/specs/2026-08-03-wp-theme-starter-kit-design.md)。
+想知道這包會長什麼樣、為什麼這樣設計，往下讀「這包做了什麼決定」。
 
 ---
 
@@ -60,7 +59,7 @@
 正確的用法是 **clone 到本機，然後用 AI 編輯器打開這個資料夾**：
 
 ```bash
-git clone git@github.com:gingerdesigndev/wp-theme-starter-kit.git
+git clone https://github.com/gingerdesigndev/wp-theme-starter-kit.git
 cd wp-theme-starter-kit
 claude          # 或用 Cursor / VS Code 開這個資料夾
 ```

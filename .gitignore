@@ -1,0 +1,16 @@
+.DS_Store
+._*
+
+# 部署憑證：含主機位址與金鑰路徑，絕不進版控
+.deploy.env
+
+# 起案後產生的站台專屬檔（起案包本身不該有）
+*.local.md
+
+# 內部工作文件：設計文件與實作計畫。
+# 這個 repo 是公開的，而那兩份含具名客戶的營運細節與野薑的內部商業資訊，
+# 所以留在本機、不進版控。
+docs/superpowers/
+
+# SDD 工作區（ledger、briefs、review 包）
+.superpowers/
