@@ -9,6 +9,7 @@ if (!defined('ABSPATH')) exit;
 
 get_header();
 
-// Task 4 會在這裡掛上 template-parts。
+get_template_part('template-parts/section', 'hero');
+get_template_part('template-parts/section', 'cards-3col');
 
 get_footer();

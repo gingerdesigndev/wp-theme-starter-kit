@@ -66,6 +66,219 @@
             "placeholder": "",
             "prepend": "",
             "append": ""
+        },
+        {
+            "key": "field_st_hero_title",
+            "label": "Hero 標題",
+            "name": "hero_title",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "必填才會顯示這一區；留空整個 Hero 區不輸出。",
+            "required": false,
+            "conditional_logic": false,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_st_hero_subtitle",
+            "label": "Hero 副標",
+            "name": "hero_subtitle",
+            "aria-label": "",
+            "type": "textarea",
+            "instructions": "選填，留空不顯示副標那一行。",
+            "required": false,
+            "conditional_logic": false,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "rows": 2,
+            "default_value": "",
+            "new_lines": "",
+            "maxlength": "",
+            "placeholder": ""
+        },
+        {
+            "key": "field_st_hero_image",
+            "label": "Hero 底圖",
+            "name": "hero_image",
+            "aria-label": "",
+            "type": "image",
+            "instructions": "選填，留空不會有底圖背景。",
+            "required": false,
+            "conditional_logic": false,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "return_format": "array",
+            "preview_size": "medium",
+            "library": "all",
+            "min_width": 0,
+            "min_height": 0,
+            "min_size": 0,
+            "max_width": 0,
+            "max_height": 0,
+            "max_size": 0,
+            "mime_types": ""
+        },
+        {
+            "key": "field_st_hero_cta_text",
+            "label": "Hero 按鈕文字",
+            "name": "hero_cta_text",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "要與下方按鈕連結一起填才會顯示按鈕，缺一不顯示。",
+            "required": false,
+            "conditional_logic": false,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_st_hero_cta_url",
+            "label": "Hero 按鈕連結",
+            "name": "hero_cta_url",
+            "aria-label": "",
+            "type": "url",
+            "instructions": "要與上方按鈕文字一起填才會顯示按鈕，缺一不顯示。",
+            "required": false,
+            "conditional_logic": false,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "placeholder": ""
+        },
+        {
+            "key": "field_st_cards_heading",
+            "label": "卡片區標題",
+            "name": "cards_heading",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "選填，留空不顯示卡片區的標題列。",
+            "required": false,
+            "conditional_logic": false,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_st_cards",
+            "label": "卡片區",
+            "name": "cards",
+            "aria-label": "",
+            "type": "repeater",
+            "instructions": "標題留空的列不會輸出（見 st_has_cards()）；全部列都空標題時整個卡片區不出現。",
+            "required": false,
+            "conditional_logic": false,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "layout": "block",
+            "button_label": "新增一列",
+            "min": 0,
+            "max": 0,
+            "rows_per_page": 20,
+            "collapsed": "",
+            "sub_fields": [
+                {
+                    "key": "field_st_cards_title",
+                    "label": "標題",
+                    "name": "title",
+                    "aria-label": "",
+                    "type": "text",
+                    "instructions": "這一列要不要顯示的唯一依據，留空這一列就不會輸出。",
+                    "required": false,
+                    "conditional_logic": false,
+                    "wrapper": {
+                        "width": "",
+                        "class": "",
+                        "id": ""
+                    },
+                    "default_value": "",
+                    "maxlength": "",
+                    "placeholder": "",
+                    "prepend": "",
+                    "append": "",
+                    "parent_repeater": "field_st_cards"
+                },
+                {
+                    "key": "field_st_cards_body",
+                    "label": "內文",
+                    "name": "body",
+                    "aria-label": "",
+                    "type": "textarea",
+                    "instructions": "",
+                    "required": false,
+                    "conditional_logic": false,
+                    "wrapper": {
+                        "width": "",
+                        "class": "",
+                        "id": ""
+                    },
+                    "rows": 3,
+                    "default_value": "",
+                    "new_lines": "",
+                    "maxlength": "",
+                    "placeholder": "",
+                    "parent_repeater": "field_st_cards"
+                },
+                {
+                    "key": "field_st_cards_image",
+                    "label": "圖片",
+                    "name": "image",
+                    "aria-label": "",
+                    "type": "image",
+                    "instructions": "",
+                    "required": false,
+                    "conditional_logic": false,
+                    "wrapper": {
+                        "width": "",
+                        "class": "",
+                        "id": ""
+                    },
+                    "return_format": "array",
+                    "preview_size": "medium",
+                    "library": "all",
+                    "min_width": 0,
+                    "min_height": 0,
+                    "min_size": 0,
+                    "max_width": 0,
+                    "max_height": 0,
+                    "max_size": 0,
+                    "mime_types": "",
+                    "parent_repeater": "field_st_cards"
+                }
+            ]
         }
     ],
     "location": [
@@ -89,5 +302,5 @@
     "display_title": "",
     "allow_ai_access": false,
     "ai_description": "",
-    "modified": 1785914497
+    "modified": 1785915324
 }

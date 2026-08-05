@@ -91,3 +91,26 @@ add_filter('acf/settings/load_json', function ($paths) {
     $paths[] = get_stylesheet_directory() . '/acf-json';
     return $paths;
 });
+
+/* ---------- 6) 共用判斷：卡片區要不要輸出 ---------- */
+/**
+ * 取首頁卡片區裡真正會被輸出的卡片（標題留白的列不算）。
+ *
+ * ⚠️ **這條判斷必須只有一份。** template-parts/section-cards-3col.php 用它決定
+ * 整區輸不輸出，任何「要不要顯示卡片區」的地方都必須呼叫它，不可各自加條件。
+ *
+ * 曾在某個客戶的正式站踩過：兩處各判各的，本機（有資料）看起來完全正常，
+ * 正式站（資料是空的）變成「連結指向一個根本沒被輸出的錨點」，點了沒反應。
+ * 要改判斷條件請改這裡。
+ *
+ * @return array 過濾後的卡片列；空陣列代表這一區不會出現
+ */
+if (!function_exists('st_has_cards')) {
+    function st_has_cards() {
+        $items = st_opt('cards', []);
+        if (!is_array($items)) return [];
+        return array_values(array_filter($items, function ($row) {
+            return is_array($row) && trim((string) ($row['title'] ?? '')) !== '';
+        }));
+    }
+}
