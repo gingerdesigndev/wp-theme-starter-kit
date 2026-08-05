@@ -18,11 +18,11 @@
     if (!empty($logo['url'])) :
     ?>
       <img src="<?php echo esc_url($logo['url']); ?>"
-           alt="<?php bloginfo('name'); ?>"
+           alt="<?php echo esc_attr(get_bloginfo('name')); ?>"
            width="<?php echo esc_attr($logo['width'] ?? 200); ?>"
            height="<?php echo esc_attr($logo['height'] ?? 60); ?>" />
     <?php else : ?>
-      <span class="site-logo__text"><?php bloginfo('name'); ?></span>
+      <span class="site-logo__text"><?php echo esc_html(get_bloginfo('name')); ?></span>
     <?php endif; ?>
   </a>
 

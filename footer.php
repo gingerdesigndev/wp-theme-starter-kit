@@ -21,7 +21,7 @@
     <?php endif; ?>
 
     <p class="site-footer__copy">
-      &copy; <?php echo esc_html(date('Y')); ?> <?php bloginfo('name'); ?>
+      &copy; <?php echo esc_html(date('Y')); ?> <?php echo esc_html(get_bloginfo('name')); ?>
     </p>
   </div>
 </footer>
