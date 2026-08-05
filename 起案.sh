@@ -30,12 +30,26 @@ NEW_PREFIX="$2"
 NEW_NAME="$3"
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 防呆：不允許在起案包正本上跑
-if [ -d "$SRC/.git" ] && git -C "$SRC" remote -v 2>/dev/null | grep -q 'wp-theme-starter-kit'; then
-  echo "❌ 這裡看起來是起案包**正本**（git remote 指向 wp-theme-starter-kit）。"
-  echo "   請先把整包複製到目標 Local 站的 wp-content/themes/ 底下，再到那份複本上跑。"
-  exit 1
-fi
+# 防呆：只允許在「已經被複製到某個 WordPress 主題目錄底下」的複本上跑。
+#
+# ⚠️ 不要改用「git remote 是不是指向起案包」來判斷——那樣會自相矛盾：
+#    照 README 說的整包複製（含 .git）過去，remote 還在，會被自己的防呆擋死；
+#    要繞過就得排除 .git，但那樣下面的 KIT_COMMIT 就永遠讀不到、
+#    HANDOFF.md 記錄不到起案版本，等於把漂移管理的錨點弄丟。
+#    用「位置」判斷才同時滿足這兩件事：正本不在 themes/ 底下，複本在。
+case "$SRC" in
+  */wp-content/themes/*) ;;
+  *)
+    echo "❌ 這裡不是 WordPress 的主題目錄。"
+    echo "   目前位置：$SRC"
+    echo ""
+    echo "   正確流程：先把整包（**含 .git**）複製到目標 Local 站的"
+    echo "   wp-content/themes/ 底下，再到那份複本上跑這支腳本。"
+    echo "   保留 .git 是刻意的——腳本要讀它來記錄起案包版本；"
+    echo "   跑完之後腳本會提示你重開 git。"
+    exit 1
+    ;;
+esac
 
 if ! echo "$NEW_SLUG" | grep -qE '^[a-z0-9-]+$'; then
   echo "❌ 主題 slug 只能用小寫英數與連字號：$NEW_SLUG"; exit 1
@@ -59,14 +73,23 @@ read -r -p "確認執行？這會就地改寫這份複本的檔案 [y/N] " ans
 # 只處理文字檔；排除 .git 與二進位素材。順序重要：先長後短，
 # 避免 st- 先被換掉導致 starter-theme 對不上。
 #
-# 注意：這裡用 [[:<:]]（BSD sed 的「詞首」錨點）取代 \b。
-# macOS 內建 sed 是 BSD sed，不支援 \b——用了不會報錯，只會靜默比對不到，
-# 等於 st_ / st- 完全沒被替換掉，卻不會有任何錯誤訊息（已實測踩過這個坑）。
-# [[:<:]] 是 BSD 規則運算式的擴充語法，效果等同「左邊詞界」，才是這台機器上真的有效的寫法。
+# ⚠️ 詞界用 [[:<:]] 不是 \b——BSD sed（macOS 內建）不支援 \b 而且**不會報錯**，
+#    只會靜默比對不到，結果 st_ 與 st- 一個都沒換掉（實測殘留 98 筆）。
+#    這種漏法 PHP lint 與前台 200 都抓不到（function_exists('st_opt') 判斷落空
+#    不算語法錯誤），只有 Step 5 的 grep 殘留計數會發現。
+#
+# ⚠️ 還要多一條 s/_st_/_${NEW_PREFIX}_/g——ACF 欄位 key（如 field_st_site_logo）
+#    是「底線 st 底線」，底線在 POSIX 裡算詞字元，[[:<:]]st_ 在 field_ 與 st_
+#    之間構不成詞界，比對不到。這不是 BSD 特有的，GNU sed 的 \b 同樣情境行為一樣。
 echo "→ 替換字串…"
+# 排除起案包自己的工作文件：docs/superpowers/（設計與計畫）與 .superpowers/（SDD 稽核紀錄）。
+# 不排除的話，每個新客戶站都會帶著另一個客戶的內部規劃細節，
+# 而且內容會被字串替換弄成語意混亂的狀態。這些檔案下面會直接刪掉。
 FILES=$(find "$SRC" -type f \
   \( -name '*.php' -o -name '*.css' -o -name '*.md' -o -name '*.sh' -o -name '*.json' \) \
-  -not -path '*/.git/*')
+  -not -path '*/.git/*' \
+  -not -path '*/docs/superpowers/*' \
+  -not -path '*/.superpowers/*')
 
 for f in $FILES; do
   LC_ALL=C sed -i '' \
@@ -74,14 +97,18 @@ for f in $FILES; do
     -e "s/Starter Theme/$NEW_NAME/g" \
     -e "s/[[:<:]]st_/${NEW_PREFIX}_/g" \
     -e "s/[[:<:]]st-/${NEW_PREFIX}-/g" \
+    -e "s/_st_/_${NEW_PREFIX}_/g" \
     -e "s/\.st-/.${NEW_PREFIX}-/g" \
     "$f"
 done
 
 # 2) 清掉示範素材（示範 partial 與 ACF 群組**保留**——它們是新站的起點）
-echo "→ 清掉示範素材…"
+echo "→ 清掉示範素材與起案包工作文件…"
 rm -f "$SRC"/assets/img/* 2>/dev/null || true
 mkdir -p "$SRC/assets/img"
+# 起案包自己的設計文件、實作計畫與 SDD 稽核紀錄，新站不需要，
+# 而且裡面有其他客戶的內部資訊，不該跟著散佈出去。
+rm -rf "$SRC/docs/superpowers" "$SRC/.superpowers"
 
 # 3) 產生站台專屬檔
 echo "→ 產生 .deploy.env 與 HANDOFF.md…"
