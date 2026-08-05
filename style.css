@@ -161,11 +161,10 @@ small {
   padding-block: var(--space-12);
   background: var(--color-bg-alt);
 }
-.site-footer__contact,
-.site-footer__copy {
-  width: min(var(--container), 100% - var(--gutter) * 2);
-  margin-inline: auto;
-}
+/* .site-footer__contact / .site-footer__copy 不再套開版公式——
+   footer.php 已經把兩者包在 .st-wrap 裡了（footer.php 第 5 行），
+   公式只能有一個施加點，這裡重複套會讓 100% 基準變成「已經被夾過一次的寬度」，
+   多縮一層且不受任何 token 控制（曾在審查中量到多縮 20px，見 §2 硬規則 3、4）。 */
 .site-footer__copy {
   font-size: var(--fs-small);
   color: var(--color-muted);
@@ -174,6 +173,23 @@ small {
 .st-page,
 .st-single {
   padding-block: var(--space-12);
+}
+/* st-page__title / st-single__title / st-archive__title / st-404__title：
+   都是 <h1>，刻意不另外訂規則，直接吃 §3 全域 h1 樣式——不是漏掉。 */
+.st-page__body,
+.st-single__body {
+  /* 長文可讀性基本設定：line-height 覆蓋沒有專屬行高的子元素（li、blockquote 等）；
+     段落間距用相鄰兄弟選擇器統一管，不逐一在個別元素上設，也不用 padding-inline 造留白。 */
+  line-height: var(--lh-p);
+}
+.st-page__body > * + *,
+.st-single__body > * + * {
+  margin-top: var(--space-4);
+}
+.st-single__meta {
+  /* 比照 .site-footer__copy 的 meta 文字處理：小一級字級＋--color-muted */
+  font-size: var(--fs-small);
+  color: var(--color-muted);
 }
 
 .st-archive { padding-block: var(--space-12); }
