@@ -1,0 +1,93 @@
+{
+    "key": "group_site_options",
+    "title": "網站設定",
+    "fields": [
+        {
+            "key": "field_st_site_logo",
+            "label": "網站 Logo",
+            "name": "site_logo",
+            "aria-label": "",
+            "type": "image",
+            "instructions": "沒有上傳時，header 會退回顯示站名文字。",
+            "required": false,
+            "conditional_logic": false,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "return_format": "array",
+            "preview_size": "medium",
+            "library": "all",
+            "min_width": 0,
+            "min_height": 0,
+            "min_size": 0,
+            "max_width": 0,
+            "max_height": 0,
+            "max_size": 0,
+            "mime_types": ""
+        },
+        {
+            "key": "field_st_contact_tel",
+            "label": "聯絡電話",
+            "name": "contact_tel",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "留空的話，footer 的聯絡資訊區整區不會顯示。",
+            "required": false,
+            "conditional_logic": false,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_st_contact_address",
+            "label": "地址",
+            "name": "contact_address",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "留空的話，footer 的聯絡資訊區整區不會顯示。",
+            "required": false,
+            "conditional_logic": false,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        }
+    ],
+    "location": [
+        [
+            {
+                "param": "options_page",
+                "operator": "==",
+                "value": "site-options"
+            }
+        ]
+    ],
+    "menu_order": 0,
+    "position": "normal",
+    "style": "default",
+    "label_placement": "top",
+    "instruction_placement": "label",
+    "hide_on_screen": [],
+    "active": true,
+    "description": "起案包示範欄位群組。新站要加欄位，到後台 ACF 編輯這個群組，存檔後 acf-json\/ 會自動更新。",
+    "show_in_rest": false,
+    "display_title": "",
+    "allow_ai_access": false,
+    "ai_description": "",
+    "modified": 1785914497
+}
