@@ -19,7 +19,10 @@ $cta_t = st_opt('hero_cta_text');
 $cta_u = st_opt('hero_cta_url');
 
 // 標題是這一區的必要條件；沒有它，整區不輸出。
-if (!$title) return;
+// 用 trim() 而不是直接判真值：編輯在後台誤打一個空白鍵時，值是 '   ' 而不是 ''，
+// st_opt() 不會回退、!$title 也是 false，結果會輸出一個標題空白的空殼區塊。
+// 判斷條件與 st_has_cards() 保持一致，兩支 partial 不要一支 trim 一支不 trim。
+if (trim((string) $title) === '') return;
 ?>
 <section class="st-hero" <?php if (!empty($image['url'])) : ?>style="background-image:url('<?php echo esc_url($image['url']); ?>')"<?php endif; ?>>
   <div class="st-wrap">
