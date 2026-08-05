@@ -31,3 +31,63 @@ add_action('wp_enqueue_scripts', function () {
     $css_ver  = file_exists($css_path) ? filemtime($css_path) : wp_get_theme()->get('Version');
     wp_enqueue_style('starter-theme', get_stylesheet_uri(), [], $css_ver);
 });
+
+/* ---------- 3) 安全讀值：版型檔一律走這支，不要直接呼叫 get_field() ---------- */
+/**
+ * 讀「網站設定」設定頁的欄位，附兩層保險。
+ *
+ * 1. ACF 被停用時 get_field() 根本不存在，直接呼叫會 fatal、整站白畫面。
+ *    客戶站的外掛不是我們控制的，這層保險必須有。
+ * 2. 值為空時回退 $fallback——acf-json 只把「欄位定義」帶進 git，欄位「值」
+ *    存在各站自己的 wp_options。剛部署到新環境、還沒進後台填值時一律是空的。
+ *
+ * @param string $name     欄位名稱
+ * @param mixed  $fallback 值為空時回傳什麼
+ * @return mixed
+ */
+if (!function_exists('st_opt')) {
+    function st_opt($name, $fallback = '') {
+        if (!function_exists('get_field')) return $fallback;
+        $value = get_field($name, 'option');
+        return ($value === null || $value === false || $value === '') ? $fallback : $value;
+    }
+}
+
+/* ---------- 4) ACF：註冊「網站設定」設定頁 ---------- */
+/*
+ * 為什麼用 PHP 註冊、不在後台點：
+ * 設定頁面的「存在」屬於主題骨架，該跟主題一起進 git、一起 deploy。
+ * 後台建的設定頁面存在 DB，換環境就得重設一次。
+ *
+ * 三層分工，別搞混：
+ *   骨架（設定頁存在）→ 程式碼   ← 這裡
+ *   欄位定義（有哪些欄位）→ acf-json/  ← 後台存檔自動同步，進 git
+ *   欄位值（實際填了什麼）→ 各站自己的 DB，不進 git
+ *
+ * 掛 acf/init 而非 init：acf_add_options_page() 要等 ACF 載入後才存在。
+ */
+add_action('acf/init', function () {
+    if (!function_exists('acf_add_options_page')) return;  // ACF 未啟用時安靜跳過，不讓後台掛掉
+
+    acf_add_options_page([
+        'page_title'  => '網站設定',
+        'menu_title'  => '網站設定',
+        'menu_slug'   => 'site-options',   // ← acf-json 的位置規則要對應這個 slug
+        'capability'  => 'edit_posts',     // 編輯者就能改，不必開管理員權限給客戶
+        'position'    => 30,
+        'redirect'    => false,
+    ]);
+});
+
+/* ---------- 5) 讓 ACF 欄位群組自動存進 acf-json/ ---------- */
+/*
+ * ACF 只要主題根有 acf-json/ 就會自動把欄位群組存成 JSON。
+ * 目錄必須存在且可寫，否則會安靜地不同步——這是最常見的「欄位定義沒進 git」原因。
+ */
+add_filter('acf/settings/save_json', function () {
+    return get_stylesheet_directory() . '/acf-json';
+});
+add_filter('acf/settings/load_json', function ($paths) {
+    $paths[] = get_stylesheet_directory() . '/acf-json';
+    return $paths;
+});
