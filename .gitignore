@@ -14,3 +14,9 @@ docs/superpowers/
 
 # SDD 工作區（ledger、briefs、review 包）
 .superpowers/
+
+# 起案包自己的工作交接紀錄（不是給新站用的範本）。
+# 這個 repo 是公開的，內部進度與客戶脈絡不該推上去。
+# 給新站用的範本是 HANDOFF.template.md / MEMORY.template.md，那兩份才進版控。
+HANDOFF.md
+MEMORY.md
