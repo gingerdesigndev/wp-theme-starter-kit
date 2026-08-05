@@ -1,0 +1,13 @@
+/*
+Theme Name: Starter Theme
+Theme URI: https://github.com/gingerdesigndev/wp-theme-starter-kit
+Author: 野薑設計
+Description: 野薑設計的 WordPress 自刻主題起案包。古典 PHP 模板 + ACF，不使用 Gutenberg。用 起案.sh 改名後開始開發。
+Version: 1.0.0
+Requires at least: 6.0
+Requires PHP: 8.0
+License: GPL-2.0-or-later
+Text Domain: starter-theme
+*/
+
+/* 樣式在 Task 5 補上。這裡只有標頭——WordPress 靠這段註解辨識主題。 */
