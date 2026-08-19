@@ -51,14 +51,52 @@ case "$SRC" in
     ;;
 esac
 
+# 立刻清掉起案包正本可能帶進來的敏感殘留（HANDOFF.md／MEMORY.md／
+# docs/superpowers/／.superpowers/）。
+#
+# ⚠️ 順序刻意放在這裡——「位置防呆」之後、「slug／CSS 前綴格式驗證」之前：
+#    位置防呆已經確認這裡是 wp-content/themes/ 底下的複本、不是正本，
+#    所以在這裡動筆刪除／覆寫是安全的，不會誤刪正本自己的檔案。
+#    放在格式驗證之前，是因為格式驗證很容易失敗而早退（例如 CSS 前綴
+#    誤用了含數字的字串）——早退若發生在清除之前，複本裡會殘留正本自己的
+#    HANDOFF.md／MEMORY.md。那兩份是維護者寫這包時的工作筆記，**明寫著
+#    上一個真實客戶的名字**，「複製整包」流程（cp -r 不理會 .gitignore）
+#    會把它們原封不動帶過來，等於把 A 客戶的名字帶進 B 客戶的專案資料夾。
+#    先清乾淨，格式驗證晚點再做也不影響——反正驗證失敗就是要使用者
+#    改參數重跑，屆時再清一次也是一樣的結果。
+KIT_COMMIT="$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo '未知（非 git 複本）')"
+
+# 起案包自己的設計文件、實作計畫與 SDD 稽核紀錄，新站不需要，
+# 而且裡面有其他客戶的內部資訊，不該跟著散佈出去。
+rm -rf "$SRC/docs/superpowers" "$SRC/.superpowers"
+
+# HANDOFF.md / MEMORY.md 是這個站**自己的**工作交接紀錄，已列入 .gitignore
+# （這個 repo 是公開的，內部進度不該推上去）。範本檔名是 *.template.md，
+# 進版控；這裡把範本複製成新站的 HANDOFF.md / MEMORY.md 再刪掉範本——
+# 新站不需要範本本身。兩份範本目前只用 <專案名> 與
+# <起案.sh 會自動填> 兩個佔位字串，不含 starter-theme／st_ 之類的東西，
+# 所以提前到「1) 字串替換」之前產生，內容不會受影響。
+cp "$SRC/HANDOFF.template.md" "$SRC/HANDOFF.md"
+# commit hash 是漂移管理的錨點：日後要比對規範差異、或把這站學到的東西
+# 回饋正本時，都是以這個 hash 為基準，一定要確認真的寫進去了。
+LC_ALL=C sed -i '' \
+  -e "s/<起案\.sh 會自動填>/$KIT_COMMIT/" \
+  -e "s/<專案名>/$NEW_NAME/g" \
+  "$SRC/HANDOFF.md"
+
+cp "$SRC/MEMORY.template.md" "$SRC/MEMORY.md"
+LC_ALL=C sed -i '' -e "s/<專案名>/$NEW_NAME/g" "$SRC/MEMORY.md"
+
+rm -f "$SRC/HANDOFF.template.md" "$SRC/MEMORY.template.md"
+
+# 到這裡，正本可能帶來的敏感殘留已經清乾淨，接下來才做參數格式驗證。
+# 就算下面早退，複本裡也不會留下正本的 HANDOFF.md／MEMORY.md／docs/superpowers/。
 if ! echo "$NEW_SLUG" | grep -qE '^[a-z0-9-]+$'; then
   echo "❌ 主題 slug 只能用小寫英數與連字號：$NEW_SLUG"; exit 1
 fi
 if ! echo "$NEW_PREFIX" | grep -qE '^[a-z]{2,6}$'; then
   echo "❌ CSS 前綴只能用 2-6 個小寫英文字母：$NEW_PREFIX"; exit 1
 fi
-
-KIT_COMMIT="$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo '未知（非 git 複本）')"
 
 echo "▶ 主題 slug ：starter-theme → $NEW_SLUG"
 echo "▶ CSS 前綴  ：st-           → ${NEW_PREFIX}-"
@@ -82,9 +120,8 @@ read -r -p "確認執行？這會就地改寫這份複本的檔案 [y/N] " ans
 #    是「底線 st 底線」，底線在 POSIX 裡算詞字元，[[:<:]]st_ 在 field_ 與 st_
 #    之間構不成詞界，比對不到。這不是 BSD 特有的，GNU sed 的 \b 同樣情境行為一樣。
 echo "→ 替換字串…"
-# 排除起案包自己的工作文件：docs/superpowers/（設計與計畫）與 .superpowers/（SDD 稽核紀錄）。
-# 不排除的話，每個新客戶站都會帶著另一個客戶的內部規劃細節，
-# 而且內容會被字串替換弄成語意混亂的狀態。這些檔案下面會直接刪掉。
+# docs/superpowers/ 與 .superpowers/ 上面已經刪掉，這裡的排除只是保險
+# （萬一哪天清除順序被改掉，這行還能擋住誤替換）。
 FILES=$(find "$SRC" -type f \
   \( -name '*.php' -o -name '*.css' -o -name '*.md' -o -name '*.sh' -o -name '*.json' \) \
   -not -path '*/.git/*' \
@@ -103,42 +140,16 @@ for f in $FILES; do
 done
 
 # 2) 清掉示範素材（示範 partial 與 ACF 群組**保留**——它們是新站的起點）
-echo "→ 清掉示範素材與起案包工作文件…"
+echo "→ 清掉示範素材…"
 rm -f "$SRC"/assets/img/* 2>/dev/null || true
 mkdir -p "$SRC/assets/img"
-# 起案包自己的設計文件、實作計畫與 SDD 稽核紀錄，新站不需要，
-# 而且裡面有其他客戶的內部資訊，不該跟著散佈出去。
-rm -rf "$SRC/docs/superpowers" "$SRC/.superpowers"
 
-# 3) 產生站台專屬檔
-#
-# HANDOFF.md / MEMORY.md 是這個站**自己的**工作交接紀錄，已列入 .gitignore
-# （這個 repo 是公開的，內部進度不該推上去）。範本檔名是 *.template.md，
-# 進版控；起案時把範本複製成新站的 HANDOFF.md / MEMORY.md 再刪掉範本——
-# 新站不需要範本本身。
-#
-# ⚠️ 用「複製整包」流程時，起案包正本自己的 HANDOFF.md / MEMORY.md
-#    （維護者自己在寫這包時用的工作筆記，被 .gitignore 擋著不會進 git，
-#    但單純 cp -r 整個資料夾不會理會 .gitignore）也會被一起複製過來。
-#    這裡直接覆蓋成範本內容，不留舊內容在新站裡。
-echo "→ 產生 .deploy.env、HANDOFF.md 與 MEMORY.md…"
+# 3) 產生 .deploy.env（若尚未存在）
+echo "→ 產生 .deploy.env…"
 if [ ! -f "$SRC/.deploy.env" ]; then
   cp "$SRC/.deploy.env.example" "$SRC/.deploy.env"
   chmod 600 "$SRC/.deploy.env"
 fi
-
-cp "$SRC/HANDOFF.template.md" "$SRC/HANDOFF.md"
-# commit hash 是漂移管理的錨點：日後要比對規範差異、或把這站學到的東西
-# 回饋正本時，都是以這個 hash 為基準，一定要確認真的寫進去了。
-LC_ALL=C sed -i '' \
-  -e "s/<起案\.sh 會自動填>/$KIT_COMMIT/" \
-  -e "s/<專案名>/$NEW_NAME/g" \
-  "$SRC/HANDOFF.md"
-
-cp "$SRC/MEMORY.template.md" "$SRC/MEMORY.md"
-LC_ALL=C sed -i '' -e "s/<專案名>/$NEW_NAME/g" "$SRC/MEMORY.md"
-
-rm -f "$SRC/HANDOFF.template.md" "$SRC/MEMORY.template.md"
 
 # 4) 印出人類必須親手做的事
 cat <<EOF
