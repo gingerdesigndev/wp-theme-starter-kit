@@ -148,10 +148,30 @@ echo "  大小：$(du -h "$TGZ" | cut -f1)"
 #    程式碼側的攔截，不完全靠人照文件做對。
 # ⚠️ deploy.sh / 起案.sh：本腳本自己與起案腳本不該出現在客戶主機上（沒有部署
 #    憑證、對客戶主機也無用，多出來只是徒增可攻擊面）。
-if tar tzf "$TGZ" | grep -qE '(^|/)\.git/|(^|/)docs/|(^|/)\.claude/|(^|/)\.superpowers/|HANDOFF\.md|MEMORY\.md|AI-協作指南\.md|CLAUDE\.md|AGENTS\.md|design-system\.md|README\.md|\.deploy\.env|(^|/)\.env$|(^|/)deploy\.sh$|(^|/)起案\.sh$'; then
+# ⚠️ tar tzf 對非 ASCII 檔名（中文檔名）會轉義成八進位跳脫序列
+#    （例如「起案.sh」印成 \350\265\267\346\241\210.sh），regex 裡的中文字
+#    永遠比不到、卻不會報任何錯誤——這條分支曾經整個沒生效過。
+#    先用 sed 把 \NNN 補成 \0NNN、再用 printf '%b' 還原成真正的 UTF-8 位元組，
+#    regex 才吃得到中文檔名。續用 tar tzf 的內容（不要換成 find 的輸出），
+#    這樣這道檢查才是獨立於上面 EXCLUDES 之外的第二道防線。
+# ⚠️ 還原後的清單一定要先落地成暫存檔，不能直接接 grep -qE：
+#    `tar tzf | sed | while read/printf | grep -qE` 這種多階管線，一旦 grep -q
+#    提早找到相符就會馬上結束，還在慢慢逐行 printf 的上游行程會收到 SIGPIPE
+#    （結束碼 141）。set -o pipefail 之下，這個 141 會蓋掉 grep 真正抓到相符
+#    的 0，讓 if 誤判成「沒找到」——grep 明明抓到了，卻因管線裡更早的行程被
+#    訊號打斷而整條回報失敗，又是一次沒有任何錯誤訊息的靜默失敗。改成先寫進
+#    暫存檔、grep -q 讀真正的檔案（不是活的管線），就不會有這個問題。
+ST_TARLIST="$(mktemp)"
+tar tzf "$TGZ" \
+  | LC_ALL=C sed 's/\\\([0-7][0-7][0-7]\)/\\0\1/g' \
+  | while IFS= read -r l; do printf '%b\n' "$l"; done \
+  > "$ST_TARLIST"
+if grep -qE '(^|/)\.git/|(^|/)docs/|(^|/)\.claude/|(^|/)\.superpowers/|HANDOFF\.md|MEMORY\.md|AI-協作指南\.md|CLAUDE\.md|AGENTS\.md|design-system\.md|README\.md|\.deploy\.env|(^|/)\.env$|(^|/)deploy\.sh$|(^|/)起案\.sh$' "$ST_TARLIST"; then
   echo "  ❌ 部署包夾帶了不該上線的檔案，中止"
+  rm -f "$ST_TARLIST"
   exit 1
 fi
+rm -f "$ST_TARLIST"
 echo "  ✅ 內容乾淨（無 .git / 內部文件 / .claude / .superpowers / docs / .env / deploy.sh / 起案.sh）"
 
 if [ $DRY_RUN -eq 1 ]; then
