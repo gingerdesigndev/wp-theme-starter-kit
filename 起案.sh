@@ -111,33 +111,34 @@ mkdir -p "$SRC/assets/img"
 rm -rf "$SRC/docs/superpowers" "$SRC/.superpowers"
 
 # 3) 產生站台專屬檔
-echo "→ 產生 .deploy.env 與 HANDOFF.md…"
+#
+# HANDOFF.md / MEMORY.md 是這個站**自己的**工作交接紀錄，已列入 .gitignore
+# （這個 repo 是公開的，內部進度不該推上去）。範本檔名是 *.template.md，
+# 進版控；起案時把範本複製成新站的 HANDOFF.md / MEMORY.md 再刪掉範本——
+# 新站不需要範本本身。
+#
+# ⚠️ 用「複製整包」流程時，起案包正本自己的 HANDOFF.md / MEMORY.md
+#    （維護者自己在寫這包時用的工作筆記，被 .gitignore 擋著不會進 git，
+#    但單純 cp -r 整個資料夾不會理會 .gitignore）也會被一起複製過來。
+#    這裡直接覆蓋成範本內容，不留舊內容在新站裡。
+echo "→ 產生 .deploy.env、HANDOFF.md 與 MEMORY.md…"
 if [ ! -f "$SRC/.deploy.env" ]; then
   cp "$SRC/.deploy.env.example" "$SRC/.deploy.env"
   chmod 600 "$SRC/.deploy.env"
 fi
 
-cat > "$SRC/HANDOFF.md" <<EOF
-# HANDOFF — $NEW_NAME
+cp "$SRC/HANDOFF.template.md" "$SRC/HANDOFF.md"
+# commit hash 是漂移管理的錨點：日後要比對規範差異、或把這站學到的東西
+# 回饋正本時，都是以這個 hash 為基準，一定要確認真的寫進去了。
+LC_ALL=C sed -i '' \
+  -e "s/<起案\.sh 會自動填>/$KIT_COMMIT/" \
+  -e "s/<專案名>/$NEW_NAME/g" \
+  "$SRC/HANDOFF.md"
 
-> 起案自「WP 自刻主題起案包」commit \`$KIT_COMMIT\`。
-> 日後要比對規範差異、或把這站學到的東西回饋正本時，以這個 hash 為基準。
+cp "$SRC/MEMORY.template.md" "$SRC/MEMORY.md"
+LC_ALL=C sed -i '' -e "s/<專案名>/$NEW_NAME/g" "$SRC/MEMORY.md"
 
-## 目前進度
-
-（剛起案，還沒開始切版）
-
-## 還沒做完 / TODO
-
-- [ ] 把 style.css §1 的顏色換成客戶品牌色，並同步 design-system.md
-- [ ] 依設計稿調整 --container 與 --measure
-- [ ] 填 .deploy.env 的主機資訊
-- [ ] 後台建立 ACF 欄位群組（位置規則：選項頁面 等於 網站設定）
-
-## 下次怎麼接
-
-先讀 \`docs/00-開站六步.md\`。
-EOF
+rm -f "$SRC/HANDOFF.template.md" "$SRC/MEMORY.template.md"
 
 # 4) 印出人類必須親手做的事
 cat <<EOF
