@@ -4,6 +4,10 @@
 # 部署憑證：含主機位址與金鑰路徑，絕不進版控
 .deploy.env
 
+# REST API 憑證：含 Application Password。文件規定正確位置是 repo 外，
+# 這行是防止有人不小心放進 repo 根目錄時的最後一道防線。
+.env
+
 # 起案後產生的站台專屬檔（起案包本身不該有）
 *.local.md
 

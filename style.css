@@ -172,7 +172,9 @@ small {
 
 .st-page,
 .st-single {
-  padding-block: var(--space-12);
+  /* docs/01「三條切版規範」的預設垂直節奏：--space-24（96px）。
+     出廠元件全部照這個值，新區塊才不會跟既有區塊對不齊。 */
+  padding-block: var(--space-24);
 }
 /* st-page__title / st-single__title / st-archive__title / st-404__title：
    都是 <h1>，刻意不另外訂規則，直接吃 §3 全域 h1 樣式——不是漏掉。 */
@@ -192,7 +194,7 @@ small {
   color: var(--color-muted);
 }
 
-.st-archive { padding-block: var(--space-12); }
+.st-archive { padding-block: var(--space-24); }
 .st-archive__grid,
 .st-cards__grid {
   display: grid;
@@ -223,14 +225,14 @@ small {
   border-radius: 4px;
 }
 
-.st-hero { padding-block: var(--space-16); background: var(--color-bg-alt); }
+.st-hero { padding-block: var(--space-24); background: var(--color-bg-alt); }
 .st-hero__title { font-size: var(--fs-h1); }
 .st-hero__sub {
   font-size: var(--fs-p);
   color: var(--color-muted);
 }
 
-.st-cards { padding-block: var(--space-16); }
+.st-cards { padding-block: var(--space-24); }
 .st-cards__heading { font-size: var(--fs-h2); }
 
 /* ══════════════════════════════════════════════════════════

@@ -60,6 +60,13 @@ DRY_RUN=0
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=1
 
 TGZ="$(mktemp)"
+# ⚠️ 固定檔名（原本是 /tmp/.st-local 等）在同時部署兩個站時會互相覆蓋：
+#    鏡像比對可能拿 A 站的遠端清單去減 B 站的本機清單，得出錯的「多餘檔」
+#    清單而誤刪。部署包只有十幾個檔，>50 的防呆攔不到這個量級的誤判。
+#    改用 mktemp 產生本次執行專屬的唯一檔名。
+ST_LOCAL="$(mktemp)"
+ST_REMOTE="$(mktemp)"
+ST_STALE="$(mktemp)"
 SSH_CMD=(ssh -i "$KEY" -p "$PORT" -o BatchMode=yes -o ConnectTimeout=15)
 
 # 不進入部署包的東西：版控、內部文件、開發工具、系統垃圾、本腳本自己
@@ -67,6 +74,9 @@ SSH_CMD=(ssh -i "$KEY" -p "$PORT" -o BatchMode=yes -o ConnectTimeout=15)
 # ⚠️ docs/、.claude/、.superpowers/ 一定要在這裡——它們是起案包獨有、原始主題
 #    沒有的東西（task brief、implementer report、review diff、規格與計畫、
 #    AI 協作設定），漏掉就會把整包規範連同踩坑紀錄傳到客戶主機上。
+# ⚠️ .env 也一定要在這裡——文件規定 REST API 的 Application Password 要放在
+#    repo 外，但文件會被人改、放錯位置的事還是可能發生。這行是程式碼側的
+#    第二道防線：就算有人真的把 .env 放進了專案根目錄，也不會被打包上傳。
 EXCLUDES=(
   --exclude='.git'
   --exclude='.gitignore'
@@ -85,6 +95,7 @@ EXCLUDES=(
   --exclude='起案.sh'
   --exclude='.deploy.env'
   --exclude='.deploy.env.example'
+  --exclude='.env'
 )
 
 # 遠端「多餘檔」由步驟 5 的鏡像機制統一處理（見下）：
@@ -92,7 +103,7 @@ EXCLUDES=(
 # 曾外洩的內部文件 design-system.md 等）一律在步驟 5 從遠端刪除。
 # 不再維護手動的 STALE_REMOTE 清單——那是逐檔白名單，遲早漏。
 
-cleanup() { rm -f "$TGZ" /tmp/.st-local /tmp/.st-remote /tmp/.st-stale; }
+cleanup() { rm -f "$TGZ" "$ST_LOCAL" "$ST_REMOTE" "$ST_STALE"; }
 trap cleanup EXIT
 
 # 本機檔案清單（步驟 5 的鏡像比對與 --dry-run 的預覽共用同一份）
@@ -109,7 +120,7 @@ list_local_files() {
     ! -name 'HANDOFF.md' ! -name 'MEMORY.md' ! -name 'AI-協作指南.md' \
     ! -name 'CLAUDE.md' ! -name 'AGENTS.md' ! -name 'design-system.md' ! -name 'README.md' \
     ! -name 'deploy.sh' ! -name '起案.sh' \
-    ! -name '.deploy.env' ! -name '.deploy.env.example' \
+    ! -name '.deploy.env' ! -name '.deploy.env.example' ! -name '.env' \
     | sed 's|^\./||' | sort)
 }
 
@@ -133,11 +144,15 @@ echo "  大小：$(du -h "$TGZ" | cut -f1)"
 # ⚠️ 這道檢查刻意跟 EXCLUDES 分開寫死一份、不是「重複同一件事」：
 #    萬一以後 EXCLUDES 漏加了什麼（就像這次的 .superpowers/ 與 docs/），
 #    這裡是最後一道會讓部署直接中止的關卡，不能只靠改 EXCLUDES 時記得同步改這裡。
-if tar tzf "$TGZ" | grep -qE '(^|/)\.git/|(^|/)docs/|(^|/)\.claude/|(^|/)\.superpowers/|HANDOFF\.md|MEMORY\.md|AI-協作指南\.md|CLAUDE\.md|AGENTS\.md|design-system\.md|README\.md|\.deploy\.env'; then
+# ⚠️ .env：REST API 的 Application Password，文件規定放 repo 外，但這裡多一道
+#    程式碼側的攔截，不完全靠人照文件做對。
+# ⚠️ deploy.sh / 起案.sh：本腳本自己與起案腳本不該出現在客戶主機上（沒有部署
+#    憑證、對客戶主機也無用，多出來只是徒增可攻擊面）。
+if tar tzf "$TGZ" | grep -qE '(^|/)\.git/|(^|/)docs/|(^|/)\.claude/|(^|/)\.superpowers/|HANDOFF\.md|MEMORY\.md|AI-協作指南\.md|CLAUDE\.md|AGENTS\.md|design-system\.md|README\.md|\.deploy\.env|(^|/)\.env$|(^|/)deploy\.sh$|(^|/)起案\.sh$'; then
   echo "  ❌ 部署包夾帶了不該上線的檔案，中止"
   exit 1
 fi
-echo "  ✅ 內容乾淨（無 .git / 內部文件 / .claude / .superpowers / docs）"
+echo "  ✅ 內容乾淨（無 .git / 內部文件 / .claude / .superpowers / docs / .env / deploy.sh / 起案.sh）"
 
 if [ $DRY_RUN -eq 1 ]; then
   echo ""
@@ -190,28 +205,28 @@ echo "  ✅ 免密碼登入正常"
 #    封鎖時間歸零，所以 dry-run 也不能盲目重跑。
 if [ $DRY_RUN -eq 1 ]; then
   echo "→ 預覽鏡像差異（唯讀，不上傳、不刪除）…"
-  list_local_files  > /tmp/.st-local
-  list_remote_files > /tmp/.st-remote
+  list_local_files  > "$ST_LOCAL"
+  list_remote_files > "$ST_REMOTE"
 
-  if [ ! -s /tmp/.st-remote ]; then
+  if [ ! -s "$ST_REMOTE" ]; then
     echo "  ⚠️ 遠端清單是空的——可能是 $REMOTE_DIR 不存在（首次部署），"
     echo "     也可能是遠端 find 失敗。首次部署屬正常，其他情況先確認再實際部署。"
   fi
 
-  comm -13 /tmp/.st-local /tmp/.st-remote > /tmp/.st-stale
-  STALE_N=$(wc -l < /tmp/.st-stale | tr -d ' ')
-  ADD_N=$(comm -23 /tmp/.st-local /tmp/.st-remote | wc -l | tr -d ' ')
+  comm -13 "$ST_LOCAL" "$ST_REMOTE" > "$ST_STALE"
+  STALE_N=$(wc -l < "$ST_STALE" | tr -d ' ')
+  ADD_N=$(comm -23 "$ST_LOCAL" "$ST_REMOTE" | wc -l | tr -d ' ')
 
   echo ""
   if [ "$STALE_N" -gt 0 ]; then
     echo "  🗑  實際部署時會從正式站刪除 $STALE_N 個檔："
-    sed 's/^/      - /' /tmp/.st-stale
+    sed 's/^/      - /' "$ST_STALE"
     [ "$STALE_N" -gt 50 ] && echo "      ⚠️ 超過 50 個，實際部署會判定異常並中止（不會刪）"
   else
     echo "  🗑  不會刪除任何遠端檔"
   fi
   echo ""
-  echo "  ⬆️  會新增／覆寫 $ADD_N 個檔（本機共 $(wc -l < /tmp/.st-local | tr -d ' ') 個）"
+  echo "  ⬆️  會新增／覆寫 $ADD_N 個檔（本機共 $(wc -l < "$ST_LOCAL" | tr -d ' ') 個）"
   echo ""
   echo "DRY-RUN 完成，未對正式站做任何寫入。"
   exit 0
@@ -248,34 +263,34 @@ echo "  ✅ 完成"
 #    docs/、.claude/、.superpowers/ 是目錄，跟 .git/ 一樣要用 -not -path（! -name 只比對
 #    檔名，比對不到目錄，會漏排除）。
 echo "→ 對齊遠端（鏡像：刪除本機已無的檔）…"
-list_local_files  > /tmp/.st-local
-list_remote_files > /tmp/.st-remote
+list_local_files  > "$ST_LOCAL"
+list_remote_files > "$ST_REMOTE"
 
 # 多餘檔 = 遠端有、本機沒有（兩份都已 sort）
-comm -13 /tmp/.st-local /tmp/.st-remote > /tmp/.st-stale
-STALE_N=$(wc -l < /tmp/.st-stale | tr -d ' ')
+comm -13 "$ST_LOCAL" "$ST_REMOTE" > "$ST_STALE"
+STALE_N=$(wc -l < "$ST_STALE" | tr -d ' ')
 
 if [ "$STALE_N" -gt 0 ]; then
   echo "  遠端多餘 $STALE_N 個檔，將刪除："
-  sed 's/^/    - /' /tmp/.st-stale
+  sed 's/^/    - /' "$ST_STALE"
   # 防呆：多餘檔異常多，很可能 REMOTE_DIR 設錯或遠端清單抓失敗，寧可中止不亂刪
   if [ "$STALE_N" -gt 50 ]; then
     echo "  ❌ 多餘檔超過 50 個，判定異常，為安全中止（未刪任何檔案，請人工確認 REMOTE_DIR）"
     exit 1
   fi
   # 逐行刪除（檔名可能含中文／空白，用 stdin 逐行讀，路徑一律綁在 REMOTE_DIR 底下）
-  "${SSH_CMD[@]}" "$SSH_USER@$HOST" "cd '$REMOTE_DIR' && while IFS= read -r f; do rm -f \"./\$f\"; done" < /tmp/.st-stale
+  "${SSH_CMD[@]}" "$SSH_USER@$HOST" "cd '$REMOTE_DIR' && while IFS= read -r f; do rm -f \"./\$f\"; done" < "$ST_STALE"
   "${SSH_CMD[@]}" "$SSH_USER@$HOST" "find '$REMOTE_DIR' -type d -empty -delete 2>/dev/null || true"
   # 重抓遠端清單供最終比對
-  "${SSH_CMD[@]}" "$SSH_USER@$HOST" "cd '$REMOTE_DIR' && find . -type f | sed 's|^\./||' | sort" > /tmp/.st-remote
+  "${SSH_CMD[@]}" "$SSH_USER@$HOST" "cd '$REMOTE_DIR' && find . -type f | sed 's|^\./||' | sort" > "$ST_REMOTE"
 fi
 
 echo "→ 驗證完整性…"
-if diff -q /tmp/.st-local /tmp/.st-remote >/dev/null; then
-  echo "  ✅ 本機與遠端一致（$(wc -l < /tmp/.st-local | tr -d ' ') 個檔案）"
+if diff -q "$ST_LOCAL" "$ST_REMOTE" >/dev/null; then
+  echo "  ✅ 本機與遠端一致（$(wc -l < "$ST_LOCAL" | tr -d ' ') 個檔案）"
 else
   echo "  ⚠️ 對齊後仍有差異（本機缺 < ／遠端多 >）："
-  diff /tmp/.st-local /tmp/.st-remote || true
+  diff "$ST_LOCAL" "$ST_REMOTE" || true
   exit 1
 fi
 

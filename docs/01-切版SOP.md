@@ -179,9 +179,12 @@ docblock 必寫四件事：
 
 ### 5. 寫 CSS
 
-排版 scope 在 `.site-main`，避免影響全站其他區域。命名 BEM-like，前綴沿用
-專案既有的 `.st-`（起案後 `起案.sh` 會換成客戶專屬前綴）：
-`.st-hero` / `.st-hero__title` / `.st-card__thumb`。
+命名 BEM-like，前綴沿用專案既有的 `.st-`（起案後 `起案.sh` 會換成客戶專屬前綴）：
+`.st-hero` / `.st-hero__title` / `.st-card__thumb`。**元件規則本身不要加
+`.site-main` 前綴**——`style.css` 裡的元件（`.st-hero`、`.st-cards` 等）全都是
+裸的 `.st-xxx`，加了前綴會產生比既有元件高一級的選擇器，破壞既有的優先權。
+`.site-main` 目前唯一的規則是 `overflow-x: clip`，只有下面「滿版做法」需要它
+當滾動容器時才會出現在選擇器裡。
 
 滿版做法與防水平捲動：
 
