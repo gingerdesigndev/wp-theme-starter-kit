@@ -230,6 +230,85 @@ repeater 這類）也照常能編輯。但會失去兩件事：**不能再新建
 
 ---
 
+## 六之二、程式化建立欄位群組（AI 自己動手時走這條）
+
+第六節那套是**人在後台點**的流程。AI 要自己建一組欄位時不要去改 JSON，
+寫一支 PHP 用 `acf_import_field_group()` 匯入，讓 ACF 自己吐 JSON：
+
+```php
+// 用法：wp eval-file 這支檔案（Local 站記得走 wp.sh 包裝）
+if ( ! function_exists( 'acf_import_field_group' ) ) {
+	WP_CLI::error( '這個環境沒有 ACF。' );
+}
+
+$result = acf_import_field_group( array(
+	'key'      => 'group_st_tools',        // 固定 key，重跑是覆蓋不是新增
+	'title'    => '工具頁內容',
+	'fields'   => array( /* ... */ ),
+	'location' => array( array( array(
+		'param' => 'page_template', 'operator' => '==', 'value' => 'page-tools.php',
+	) ) ),
+	'show_in_rest' => 1,                   // 要用 REST 填值就一定要開
+) );
+```
+
+**為什麼不手改 `acf-json/*.json`**：那個目錄是 ACF 的**輸出**，不是輸入。
+手改的內容格式稍有出入就會安靜地不生效，或在下次後台存檔時被覆蓋掉。
+走 `acf_import_field_group()` 的話 JSON 由 ACF 自己產生，格式一定對。
+
+**key 要自己固定寫死**（`group_st_xxx`／`field_st_xxx`），不要讓 ACF 亂數產生——
+重跑腳本才會是覆蓋而不是每次多一組，而且 key 一旦上線就不能改（見第七節）。
+
+### 查證過的一條，不要再「修」它
+
+`functions.php` 掛的 `acf/settings/save_json`／`load_json` **在 ACF 6.8.7 依然有效**，
+不要因為看到 `acf/json/save_paths` 就去換掉。對 6.8.7 原始碼查證過的呼叫鏈：
+
+- `includes/local-json.php:210` 的 `get_save_paths()` 呼叫
+  `acf_get_setting( 'save_json' )`
+- `includes/api/api-helpers.php:101` 的 `acf_get_setting()` 會
+  `apply_filters( "acf/settings/{$name}", $value )`
+- ACF 自己的 WPML 整合就在用它（`includes/wpml.php:61-62`）
+
+`acf/json/save_paths`／`load_paths` 是 6.2 之後**額外**加的一層（在上面那層之後
+才套用），是補充不是取代。
+
+---
+
+## 六之三、跨環境填「值」：頁面層級欄位可以走 REST，選項頁不一定
+
+第八節講的是圖片欄位的 attachment ID 不能直接搬。這裡補「值要怎麼填進去」：
+
+| 欄位掛在哪 | 能不能走 REST | 怎麼做 |
+|---|---|---|
+| **頁面／文章／自訂內容型態** | ✅ 可以 | 欄位群組 `show_in_rest: 1`，然後 `POST /wp/v2/pages/{id}`，body 放 `{"acf": { ... }}` |
+| **選項頁（Options Page）** | ⚠️ 看站 | 有些站沒有 acf 的 REST namespace，這時候只能請使用者跑一次程式碼片段 |
+
+實測可用的填值形狀（repeater 用陣列，圖片欄位放 attachment ID）：
+
+```bash
+curl --netrc-file ~/.<專案>.netrc -X POST \
+  -H "Content-Type: application/json" \
+  --data-binary @payload.json \
+  "https://example.com/wp-json/wp/v2/pages/123?context=edit"
+```
+
+```json
+{ "acf": { "hero_title": "標題",
+           "hero_image": 20398,
+           "items": [ { "image": 20399, "title": "第一項", "url": "" } ] } }
+```
+
+回應會把 `acf` 一起帶回來，**拿回應驗證**（欄位名對不對、repeater 幾筆、
+圖片 ID 有沒有寫進去），不要只看 HTTP 200——見「HTTP 200 不等於成功」。
+
+⚠️ 填值之前先想清楚**要不要填**。欄位全空時前台走的是版型檔的回退值，畫面
+一模一樣；填了值的好處是客戶在後台看得到、改得動。但**圖片欄位只填一半是最糟的**：
+文字從 ACF 來、圖片欄位空著，版型檔如果沒處理這個組合就會輸出破圖
+（實測踩過，見 `docs/01-切版SOP.md` 的回退值紀律）。要嘛整組填好，要嘛整組留空。
+
+---
+
 ## 七、欄位多了要拆群組；拆的時候 key 一個都不能動
 
 一個群組塞十幾個欄位（就算有用 tab 分段）在後台是一個很長的大框，客戶不好找
