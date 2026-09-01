@@ -30,7 +30,9 @@
       "Bash(tail *)",
       "Bash(md5 *)",
       "Bash(du *)",
-      "Bash(php -l *)"
+      "Bash(php -l *)",
+      "Bash(grep *)",
+      "Bash(diff *)"
     ]
   }
 }
