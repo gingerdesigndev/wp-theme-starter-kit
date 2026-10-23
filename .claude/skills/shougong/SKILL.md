@@ -74,6 +74,20 @@ description: 工作告一段落時的「收工」流程。當使用者說「收�
 > - 回饋正本.md：N 筆通用教訓（或：這次沒有對下一個站也有用的教訓）
 > 下次見。
 
+## 多個 session 同時在這個站工作時
+
+先 `ListAgents` 看有沒有別的 session。有的話，**一天只有一個 session 跑這個流程**：
+
+- 你是**審查 session**（負責 push／部署的那個）→ 照上面做，並把改碼 session 傳來的三段
+  （做了什麼／留給使用者裁定的／學到的教訓）合併進去。
+- 你是**改碼 session**（只 commit、不 push）→ **不要跑這個流程**。用 SendMessage 把那三段
+  傳給審查 session，由它寫。審查 session 已經先收工的，用 Edit 對 `HANDOFF.md`／`MEMORY.md`
+  **局部追加**，不要整份覆蓋、不要重跑。
+- 不確定自己是哪一個 → 問使用者，不要兩邊都寫。
+
+理由：HANDOFF.md 是整份覆蓋，兩個 session 各跑一次，後跑的會把先跑的蓋掉
+（細則見 `docs/07-審查清單.md` 第八節）。
+
 ## 重要規則
 
 - **HANDOFF.md = 單一檔案、每次覆蓋（commit hash 那一行例外，保留）**；

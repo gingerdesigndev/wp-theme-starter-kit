@@ -1,0 +1,9 @@
+{
+  "name": "starter-theme-tools",
+  "private": true,
+  "description": "本機量測／截圖工具的相依。只給 tools/webkit-*.mjs 用；不進部署包（deploy.sh 整個排除 tools/），node_modules 由 .gitignore 擋。第一次用：npm install && npx playwright install webkit",
+  "type": "module",
+  "dependencies": {
+    "playwright": "^1.63.0"
+  }
+}

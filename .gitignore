@@ -24,3 +24,7 @@ docs/superpowers/
 # 給新站用的範本是 HANDOFF.template.md / MEMORY.template.md，那兩份才進版控。
 HANDOFF.md
 MEMORY.md
+
+# 本機量測／截圖工具的相依（tools/package.json 的 Playwright）。
+# deploy.sh 另外排除整個 tools/，這行只管 git。
+tools/node_modules/

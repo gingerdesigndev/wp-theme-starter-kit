@@ -306,6 +306,44 @@ curl --netrc-file ~/.<專案>.netrc -X POST \
 一模一樣；填了值的好處是客戶在後台看得到、改得動。但**圖片欄位只填一半是最糟的**：
 文字從 ACF 來、圖片欄位空著，版型檔如果沒處理這個組合就會輸出破圖
 （實測踩過，見 `docs/01-切版SOP.md` 的回退值紀律）。要嘛整組填好，要嘛整組留空。
+---
+
+## 六之四、options 欄位值：一次性 seeder（選項頁不開 REST、主機沒有 php CLI 時的正路）
+
+六之三的 `show_in_rest` 路**只涵蓋掛在頁面上的欄位**。選項頁（`post_id='options'`）
+ACF 完全不開 REST 端點；正式主機又常常沒有 php CLI、沒有 wp-cli。這時候驗證過的
+正路是在 `functions.php` 放一支**一次性 seeder**，部署上去跑一次、驗完就刪：
+
+```php
+add_action( 'acf/init', function () {
+	if ( ! function_exists( 'update_field' ) ) return;                       // guard 1：沒有 ACF
+	if ( wp_parse_url( home_url(), PHP_URL_HOST ) !== 'www.example.com' ) return; // guard 2：只在正式站跑
+	if ( get_option( 'st_seed_transport_20260908' ) ) return;                 // guard 3：跑過即立旗標
+	update_field( 'field_st_transport_title', '交通資訊', 'option' );
+	update_field( 'field_st_transport_map', 20398, 'option' );                // attachment ID 是正式站的
+	update_field( 'field_st_transport_items', array(                          // Repeater 用 sub field key 當鍵
+		array( 'field_st_transport_label' => '捷運', 'field_st_transport_text' => '…' ),
+	), 'option' );
+	update_option( 'st_seed_transport_20260908', current_time( 'mysql' ) );
+}, 20 );                                                                     // 等群組註冊完
+```
+
+步驟與判準：
+
+1. **圖片先走 `POST /wp/v2/media` 上傳**，記下正式站的 attachment ID（第八節：兩站 ID 必不相同，
+   不可沿用本機 ID）。
+2. 三層 guard 缺一不可：`function_exists` 防 ACF 不在；**host 判斷防本機誤跑**（否則會把
+   錯的 attachment ID 種進本機）；旗標 option 防重複。值**全部寫死**在程式碼裡、沒有任何
+   遠端輸入——所以它不是第八節禁止的「寫入端點」。
+3. commit → deploy → **打一發 `GET /wp-json/`** 觸發：REST index 會跑完整 WP 載入（含主題
+   `functions.php` 與 `acf/init`）。**不能打前台頁**——頁面快取命中時 PHP 根本不執行。
+4. 驗證**不能只看前台長一樣**：種入值＝回退值時無從分辨（第三節）。要找「只可能來自 DB 值」
+   的訊號——例如值裡帶回退值沒有的 query string、圖片 `src` 是 `uploads/` 路徑而非主題
+   `assets/` 路徑。清該頁快取後抓裸網址看這些訊號。
+5. 驗證通過**立刻刪掉 seeder**，commit → deploy 收窗。旗標 option 留在正式站 DB 當執行紀錄。
+
+**不要自建 ACF 寫入端點**（`register_rest_route` 收 JSON 寫 `update_field`）——那是多餘的
+攻擊面，多數權限機制也會整路擋下來；上面這條路本來就夠用。
 
 ---
 
@@ -323,6 +361,20 @@ curl --netrc-file ~/.<專案>.netrc -X POST \
 key 改了等於資料搬家——欄位看起來還在，既有已填的內容卻讀不到了（跟第四節
 「改 name 會孤兒化」是同類事故，只是這次的肇因是 key）。拆完要逐一比對
 欄位數量與後台顯示的既有值，確認沒有漏搬、沒有讀不到。
+**反過來，哪些操作是安全的、不會動到值**：值存在 `wp_options` 的 `options_<欄位名>`，
+跟「這個欄位被放在哪個欄位群組、哪個選項子頁」**完全無關**。所以拆群組、把欄位搬到別的群組、
+改群組的 key／title／檔名、換選項子頁，**值都不受影響**；只有改欄位 `name`（第四節）會孤兒化、
+以及這一節講的改欄位 `key`。實案是把一頁「環境照片」拆成「診所環境」「診療設備」兩個子頁，
+值一筆沒掉。拆的時候三件事要一起改，少一件就是「後台掛得上去但沒人告訴你哪裡不對」：
+
+1. `functions.php` 的 `acf_add_options_page()` 多註冊一個子頁；
+2. 新群組 `acf-json` 的 `location` 綁新的 `menu_slug`（舊群組把搬走的欄位刪掉）；
+3. **舊入口的 slug 留給其中一頁沿用**，舊書籤與舊連結才不會斷。
+
+子選單順序＝`acf_add_options_page()` 的呼叫順序，不是 `menu_order` 參數
+（見 `docs/05-踩坑清單.md`「ACF options 母選單」）。驗證：`acf_get_options_page($slug)` 與
+`acf_get_field_groups(['options_page' => $slug])` 確認掛對，再對新群組的 field key 寫一筆值 →
+curl 前台看回退圖有沒有被換掉 → 還原。**只 curl 前台不算驗過**（第三節的固有盲點）。
 
 ---
 

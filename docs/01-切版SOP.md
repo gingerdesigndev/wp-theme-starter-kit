@@ -335,6 +335,21 @@ docblock 必寫四件事：
    | 768 | **最擠的斷點**，最容易壞 |
    | 320 | 最窄，看會不會溢出 |
 
+7. **兩個引擎都量，不要只在 Chromium 上下結論。** 客戶端有 iPhone，WebKit 對 grid `1fr`、
+   `margin-inline:auto`、`@container` 的算法跟 Chromium 不同，「Chromium 六寬度全 PASS、
+   iPhone 右邊破出視窗」是實際發生過的事（寫法見 `docs/03-樣式與設計系統.md` 第七節）。
+   起案包附了 Playwright WebKit 工具，第一次 `cd tools && npm install && npx playwright install webkit`：
+
+   ```bash
+   node tools/webkit-overflow.mjs http://<站>.local/<頁>/ --engine=both --widths=320,375,414
+   node tools/webkit-measure.mjs  http://<站>.local/<頁>/ --width=375 ".st-card__photo" ".st-card__name"
+   node tools/webkit-shot.mjs     http://<站>.local/<頁>/ --width=375 --engine=both --out=/tmp/<頁>.png
+   ```
+
+   `--engine=both` 會把**只在 WebKit 溢出**的元素單列出來，那些就是 iOS 專屬問題的第一嫌疑。
+   它抓得到引擎差異，抓不到舊 iOS 版本差異（停在 iOS 16 的機器），那還是要實機。
+   切完的頁交審時照 `docs/07-審查清單.md`；新頁屬 2 級。
+
 ---
 
 ## 三條切版規範（多頁專案上被驗證過，不能省）

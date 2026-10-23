@@ -74,6 +74,9 @@ SSH_CMD=(ssh -i "$KEY" -p "$PORT" -o BatchMode=yes -o ConnectTimeout=15)
 # ⚠️ docs/、.claude/、.superpowers/ 一定要在這裡——它們是起案包獨有、原始主題
 #    沒有的東西（task brief、implementer report、review diff、規格與計畫、
 #    AI 協作設定），漏掉就會把整包規範連同踩坑紀錄傳到客戶主機上。
+# ⚠️ tools/ 也要在這裡——本機量測／截圖腳本（Playwright），正式站用不到；而且
+#    tools/node_modules 是整包套件（.gitignore 有擋、但 find 不讀 .gitignore），
+#    不排除會把它整包傳上去。
 # ⚠️ .env 也一定要在這裡——文件規定 REST API 的 Application Password 要放在
 #    repo 外，但文件會被人改、放錯位置的事還是可能發生。這行是程式碼側的
 #    第二道防線：就算有人真的把 .env 放進了專案根目錄，也不會被打包上傳。
@@ -84,6 +87,7 @@ EXCLUDES=(
   --exclude='docs'
   --exclude='.claude'
   --exclude='.superpowers'
+  --exclude='tools'
   --exclude='HANDOFF.md'
   --exclude='MEMORY.md'
   --exclude='AI-協作指南.md'
@@ -110,12 +114,12 @@ trap cleanup EXIT
 # ⚠️ 只能有這一份實作。抽成函式的理由不是「比較整潔」：這份清單的排除集必須跟
 #    上方 EXCLUDES 一致，一旦兩處各寫一份，改了 EXCLUDES 卻漏改另一處，
 #    鏡像就會把「其實該留」的檔判成多餘而刪掉——那是靜默的資料損失。
-# .git/、docs/、.claude/、.superpowers/ 是目錄，要用 -not -path
+# .git/、docs/、.claude/、.superpowers/、tools/ 是目錄，要用 -not -path
 #（! -name 只比對檔名，比對不到目錄，會漏排除）。
 list_local_files() {
   (cd "$SRC" && find . -type f \
     -not -path './.git/*' -not -path './docs/*' -not -path './.claude/*' \
-    -not -path './.superpowers/*' \
+    -not -path './.superpowers/*' -not -path './tools/*' \
     ! -name '.gitignore' ! -name '.DS_Store' \
     ! -name 'HANDOFF.md' ! -name 'MEMORY.md' ! -name 'AI-協作指南.md' \
     ! -name 'CLAUDE.md' ! -name 'AGENTS.md' ! -name 'design-system.md' ! -name 'README.md' \
@@ -133,6 +137,37 @@ list_remote_files() {
 echo "▶ 來源：$SRC"
 echo "▶ 目標：$SSH_USER@$HOST:$REMOTE_DIR"
 echo "▶ 模式：$([ $DRY_RUN -eq 1 ] && echo 'DRY-RUN（不上傳）' || echo '實際部署')"
+
+# 0) 工作目錄必須乾淨（見 docs/07-審查清單.md 與 docs/04-部署SOP.md 第六層）
+#
+# 這個腳本打包的是「工作目錄現在的樣子」，不是 git 裡任何一個 commit。
+# 為了重現 bug 而暫時改掉的 CSS、還沒審過的半成品、忘了刪的測試檔，
+# 只要還留在工作目錄，就會原封不動上線——而且 md5 比對、鏡像對齊全部會過，
+# 因為它們只保證「傳上去的＝本機的」，不保證「本機的＝審過的」。
+# 實案：某客戶站驗收期為了驗量測工具把 style.css 暫改回 1fr，靠人記得還原才沒事。
+#
+# 所以實際部署前，`git status --short` 必須是空的（含未追蹤檔：git 會尊重
+# .gitignore，node_modules 之類不會列出，但任何沒被忽略的新檔都會被 tar 打包上線）。
+# 刻意不提供繞過用的環境變數：要上線就先 commit 或 stash，沒有例外。
+# --dry-run 只警告不中止：預覽時常常就是在半途想看鏡像會刪什麼。
+if git -C "$SRC" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  DIRTY="$(git -C "$SRC" status --short)"
+  if [ -n "$DIRTY" ]; then
+    echo "→ 工作目錄有未提交的變更："
+    echo "$DIRTY" | sed 's/^/    /'
+    if [ $DRY_RUN -eq 1 ]; then
+      echo "  ⚠️ DRY-RUN 繼續，但實際部署會在這裡中止。先 commit 或 stash。"
+      echo ""
+    else
+      echo "  ❌ 部署的是工作目錄、不是 commit——未提交的東西會直接上線。先 commit 或 stash 再跑，中止。"
+      exit 1
+    fi
+  else
+    echo "→ 工作目錄乾淨（git status 無未提交變更）"
+  fi
+else
+  echo "  ⚠️ $SRC 不是 git 工作目錄，跳過乾淨度檢查"
+fi
 echo ""
 
 # 1) 打包
@@ -166,13 +201,13 @@ tar tzf "$TGZ" \
   | LC_ALL=C sed 's/\\\([0-7][0-7][0-7]\)/\\0\1/g' \
   | while IFS= read -r l; do printf '%b\n' "$l"; done \
   > "$ST_TARLIST"
-if grep -qE '(^|/)\.git/|(^|/)docs/|(^|/)\.claude/|(^|/)\.superpowers/|HANDOFF\.md|MEMORY\.md|AI-協作指南\.md|CLAUDE\.md|AGENTS\.md|design-system\.md|README\.md|\.deploy\.env|(^|/)\.env$|(^|/)deploy\.sh$|(^|/)起案\.sh$' "$ST_TARLIST"; then
+if grep -qE '(^|/)\.git/|(^|/)docs/|(^|/)\.claude/|(^|/)\.superpowers/|(^|/)tools/|(^|/)node_modules/|HANDOFF\.md|MEMORY\.md|AI-協作指南\.md|CLAUDE\.md|AGENTS\.md|design-system\.md|README\.md|\.deploy\.env|(^|/)\.env$|(^|/)deploy\.sh$|(^|/)起案\.sh$' "$ST_TARLIST"; then
   echo "  ❌ 部署包夾帶了不該上線的檔案，中止"
   rm -f "$ST_TARLIST"
   exit 1
 fi
 rm -f "$ST_TARLIST"
-echo "  ✅ 內容乾淨（無 .git / 內部文件 / .claude / .superpowers / docs / .env / deploy.sh / 起案.sh）"
+echo "  ✅ 內容乾淨（無 .git / 內部文件 / .claude / .superpowers / docs / tools / .env / deploy.sh / 起案.sh）"
 
 if [ $DRY_RUN -eq 1 ]; then
   echo ""
